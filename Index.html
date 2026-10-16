@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Friends Savings Fund</title>
+<style>
+:root{box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px);--bg:#f6f7f4;--card:#fff;--tx:#1d2b24;--mu:#66746c;--ac:#1f7a5a;--bd:#dde3dd;--bad:#c0392b}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){color-scheme:dark;--bg:#121916;--card:#1b2420;--tx:#e8efe9;--mu:#92a39a;--ac:#4cc79a;--bd:#2c3933;--bad:#ff7b6b}}
+:root[data-theme="dark"]{color-scheme:dark;--bg:#121916;--card:#1b2420;--tx:#e8efe9;--mu:#92a39a;--ac:#4cc79a;--bd:#2c3933;--bad:#ff7b6b}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--tx);font:15px/1.5 system-ui,-apple-system,Segoe UI,sans-serif}
+.w{max-width:960px;margin:auto;padding:16px}
+h1{font-size:20px;margin:0}h2{font-size:16px;margin:0 0 10px}
+.top{display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:12px}
+.tabs{display:flex;gap:6px;overflow-x:auto;margin-bottom:14px}
+button,input,select{font:inherit;color:var(--tx);background:var(--card);border:1px solid var(--bd);border-radius:8px;padding:7px 11px}
+button{cursor:pointer}button.p,.tabs button.on{background:var(--ac);color:#fff;border-color:var(--ac)}
+.tabs button{white-space:nowrap}
+.g{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin-bottom:14px}
+.c{background:var(--card);border:1px solid var(--bd);border-radius:12px;padding:14px;margin-bottom:14px}
+.g .c{margin:0}.k{color:var(--mu);font-size:12px}.v{font-size:20px;font-weight:650}
+.sc{overflow-x:auto}table{border-collapse:collapse;width:100%;font-size:14px}
+th,td{padding:7px 8px;border-bottom:1px solid var(--bd);text-align:left;white-space:nowrap}th{color:var(--mu);font-weight:500}
+td.n,th.n{text-align:right}.f{display:flex;gap:8px;flex-wrap:wrap;align-items:end}.f label{display:flex;flex-direction:column;font-size:12px;color:var(--mu);gap:3px}
+.ck{width:22px;height:22px;accent-color:var(--ac)}.bad{color:var(--bad)}.tag{font-size:12px;padding:2px 8px;border-radius:99px;background:var(--bd)}
+</style></head><body><div class="w">
+<div class="top"><h1>💰 Friends Savings Fund</h1><div><button onclick="exp()">Backup</button> <button onclick="document.getElementById('imp').click()">Restore</button><input id="imp" type="file" accept=".json" hidden onchange="imp(event)"></div></div>
+<div class="tabs" id="tabs"></div><div id="main"></div>
+<p class="k">Data is saved in this browser only (not synced). Use Backup regularly and share the file with the group.</p></div>
+<script>
+const DEF={amt:1000,rate:2,start:"2026-10",members:Array.from({length:7},(_,i)=>({id:"m"+(i+1),name:"Member "+(i+1)})),paid:{},loans:[],bank:[],dist:[]};
+let S;try{S=JSON.parse(localStorage.getItem("fund2")||"null")}catch(e){}S=S||JSON.parse(JSON.stringify(DEF));
+let tab="Dashboard";const T=()=>new Date().toISOString().slice(0,10);
+const save=()=>{try{localStorage.setItem("fund2",JSON.stringify(S))}catch(e){}render()};
+const $=n=>(n<0?"-":"")+"₹"+Math.round(Math.abs(n)).toLocaleString("en-IN"),mn=id=>(S.members.find(m=>m.id==id)||{}).name;
+const months=()=>{let[y,m]=S.start.split("-").map(Number),r=[];for(let i=0;i<12;i++){r.push(y+"-"+String(m).padStart(2,"0"));if(++m>12){m=1;y++}}return r};
+const ml=k=>new Date(k+"-01").toLocaleDateString("en-GB",{month:"short",year:"2-digit"});
+const RATE=1,p2=n=>String(n).padStart(2,"0");
+function addM(s,k){const[y,m,d]=s.split("-").map(Number);const t=new Date(y,m-1+k,1),last=new Date(t.getFullYear(),t.getMonth()+1,0).getDate();return t.getFullYear()+"-"+p2(t.getMonth()+1)+"-"+p2(Math.min(d,last))}
+function calc(l){const ps=[...l.pays].sort((a,b)=>a.d<b.d?-1:1),td=T();let bal=l.amt,due=0,ip=0,pp=0,rows=[],ev=[],k=0,pi=0;
+const snap=()=>{const r=rows[rows.length-1];if(r){r.cb=bal;r.cd=due}};
+for(;;){const cd=addM(l.date,k),p=ps[pi];
+if(cd<=td&&bal>0.005&&(!p||cd<=p.d)){snap();const i=bal*RATE/100;due+=i;rows.push({k,d:cd,i,p:0});k++}
+else if(p){if(!rows.length)rows.push({k:0,d:l.date,i:0,p:0});let a=p.a;const x=Math.min(a,due);due-=x;ip+=x;a-=x;const y=Math.min(a,bal);bal-=y;pp+=y;ev.push({d:p.d,i:x,pr:y});rows[rows.length-1].p+=p.a;pi++}
+else break}
+snap();return{bal,due,int:ip,prin:pp,rows,ev,full:bal+due}}
+function ledger(){const L=[];if(S.open&&S.open.cash)L.push({d:S.open.d,t:"Opening balance",a:S.open.cash});Object.keys(S.paid).forEach(k=>{if(!S.paid[k])return;const[m,mo]=k.split("|");if(mn(m))L.push({d:mo+"-01",t:"Contribution – "+mn(m),a:S.amt})});
+S.loans.forEach(l=>{if(!l.old)L.push({d:l.date,t:"Loan given – "+mn(l.mid),a:-l.amt});l.pays.forEach((p,i)=>L.push({d:p.d,t:`Payment – ${mn(l.mid)}`,a:p.a}))});
+S.dist.forEach(x=>L.push({d:x.d,t:"Interest distributed to members",a:-x.total}));S.bank.forEach(x=>L.push({...x,m:1}));
+return L.sort((a,b)=>a.d<b.d?-1:1)}
+function stats(){const c={};S.members.forEach(m=>c[m.id]=+m.open||0);Object.keys(S.paid).forEach(k=>{const m=k.split("|")[0];if(S.paid[k]&&m in c)c[m]+=S.amt});
+const tc=Object.values(c).reduce((a,b)=>a+b,0);let out=0,ti=0,pd=0;S.loans.forEach(l=>{const x=calc(l);out+=x.bal;ti+=x.int;pd+=x.due});
+const dd=S.dist.reduce((a,x)=>a+x.total,0),bank=ledger().reduce((a,x)=>a+x.a,0);return{c,tc,out,ti,pd,dd,pend:ti-dd,bank}}
+function render(){document.getElementById("tabs").innerHTML=["Dashboard","Contributions","Loans","Bank","Reports","Year-end","Members"].map(t=>`<button class="${t==tab?"on":""}" onclick="tab='${t}';render()">${t}</button>`).join("");
+document.getElementById("main").innerHTML=({Dashboard:dash,Contributions:contribs,Loans:loans,Bank:bank,Reports:reports,"Year-end":yearend,Members:members})[tab]()}
+const share=(s,id)=>s.tc?s.c[id]/s.tc:0;
+function dash(){const s=stats();
+const rows=S.members.map(m=>{const ln=S.loans.filter(l=>l.mid==m.id).reduce((a,l)=>a+calc(l).full,0);
+return`<tr><td>${m.name}</td><td class="n">${$(s.c[m.id])}</td><td class="n">${$(s.pend*share(s,m.id))}</td><td class="n ${ln?"bad":""}">${ln?$(ln):"–"}</td></tr>`}).join("");
+return`<div class="g"><div class="c"><div class="k">Bank balance</div><div class="v">${$(s.bank)}</div></div>
+<div class="c"><div class="k">Total collected</div><div class="v">${$(s.tc)}</div></div>
+<div class="c"><div class="k">Loan principal outstanding</div><div class="v">${$(s.out)}</div></div>
+<div class="c"><div class="k">Interest earned</div><div class="v">${$(s.ti)}</div></div>
+<div class="c"><div class="k">Interest due from borrowers</div><div class="v">${$(s.pd)}</div></div>
+<div class="c"><div class="k">Interest to distribute</div><div class="v">${$(s.pend)}</div></div></div>
+<div class="c"><h2>Member summary</h2><div class="sc"><table><tr><th>Member</th><th class="n">Saved</th><th class="n">Interest share (pending)</th><th class="n">Owes fund</th></tr>${rows}</table></div></div>`}
+function contribs(){const ms=months();
+const rows=S.members.map(m=>`<tr><td>${m.name}</td>${ms.map(k=>`<td class="n"><input type="checkbox" class="ck" ${S.paid[m.id+"|"+k]?"checked":""} onchange="S.paid['${m.id}|${k}']=this.checked;save()"></td>`).join("")}</tr>`).join("");
+return`<div class="c"><div class="f"><label>Monthly amount per member (₹)<input type="number" value="${S.amt}" onchange="S.amt=+this.value||0;save()"></label>
+<label>Cycle start month<input type="month" value="${S.start}" onchange="S.start=this.value||S.start;save()"></label></div></div>
+<div class="c"><h2>Monthly contributions credited to bank</h2><div class="sc"><table><tr><th>Member</th>${ms.map(m=>`<th class="n">${ml(m)}</th>`).join("")}</tr>${rows}<tr><td><b>Total</b></td>${ms.map(k=>`<td class="n">${$(S.members.filter(m=>S.paid[m.id+"|"+k]).length*S.amt)}</td>`).join("")}</tr></table></div></div>`}
+function loans(){const s=stats();const opts=S.members.map(m=>`<option value="${m.id}">${m.name}</option>`).join("");
+const list=S.loans.map((l,i)=>{const x=calc(l),done=x.full<0.01,full=+x.full.toFixed(2);
+return`<div class="c"><div class="top" style="margin:0 0 6px"><b>${mn(l.mid)} — ${$(l.amt)} taken ${l.date}</b><span class="tag ${x.due>0.5?"bad":""}">${done?"Closed":x.due>0.5?"Interest due "+$(x.due):"Active"}</span></div>
+<div class="k">Principal left ${$(x.bal)} · Interest paid ${$(x.int)} · Full payoff today ${$(full)}</div>
+<div class="f" style="margin-top:8px"><label>Borrower<select onchange="S.loans[${i}].mid=this.value;save()">${S.members.map(m=>`<option value="${m.id}" ${m.id==l.mid?"selected":""}>${m.name}</option>`).join("")}</select></label><label>Principal ₹<input type="number" value="${l.amt}" style="width:110px" onchange="S.loans[${i}].amt=+this.value||0;save()"></label><label>Start date<input type="date" value="${l.date}" onchange="S.loans[${i}].date=this.value;save()"></label></div>
+<div class="sc" style="max-height:220px;overflow-y:auto;margin-top:6px"><table><tr><th>Month</th><th>Interest on</th><th class="n">Interest 1%</th><th class="n">Paid</th><th class="n">Principal left</th><th class="n">Interest due</th></tr>
+${[...x.rows].reverse().map(r=>`<tr><td>${r.k+1}</td><td>${r.d}</td><td class="n">${$(r.i)}</td><td class="n">${$(r.p)}</td><td class="n">${$(r.cb)}</td><td class="n">${$(r.cd)}</td></tr>`).join("")}</table></div>
+${l.pays.length?`<div class="k" style="margin-top:8px">Payments (editable)</div>${l.pays.map((p,j)=>`<div class="f" style="margin-top:4px"><input type="date" value="${p.d}" onchange="S.loans[${i}].pays[${j}].d=this.value;save()"><input type="number" value="${p.a}" style="width:110px" onchange="S.loans[${i}].pays[${j}].a=+this.value||0;save()"><button onclick="ask('Remove this payment?',()=>{S.loans[${i}].pays.splice(${j},1);save()})">✕</button></div>`).join("")}`:""}
+${done?"":`<div class="f" style="margin-top:8px"><label>Date<input type="date" id="d${i}" value="${T()}"></label><label>Amount paid ₹<input type="number" id="a${i}" value="${Math.ceil(x.due)}" style="width:110px"></label>
+<button onclick="document.getElementById('a${i}').value=${full}">Full payoff</button><button class="p" onclick="pay(${i})">Record payment</button></div>`}
+<div style="margin-top:8px"><button onclick="ask('Delete this loan?',()=>{S.loans.splice(${i},1);save()})">Delete loan</button></div></div>`}).join("");
+return`<div class="c"><h2>New loan <span class="k">(bank balance: ${$(s.bank)})</span></h2><div class="f"><label>Borrower<select id="lm">${opts}</select></label>
+<label>Amount ₹<input type="number" id="la" style="width:120px"></label><label>Date<input type="date" id="ld" value="${T()}"></label><label style="flex-direction:row;align-items:center;gap:6px"><input type="checkbox" id="lo" class="ck">Existing loan (already given, no bank debit)</label><button class="p" onclick="addLoan()">Save loan</button></div>
+<p class="k">No time limit. Interest is 1% per month on the principal left. Borrowers pay any amount each month (even 0). Payments go to interest first, then principal.</p></div>${list||'<p class="k">No loans yet.</p>'}`}
+function addLoan(){const a=+la.value;if(!a||a<=0)return note("Enter amount");
+const go=()=>{S.loans.push({mid:lm.value,amt:a,date:ld.value,pays:[],old:lo.checked});save()};
+if(!lo.checked&&a>stats().bank)ask("Amount is more than bank balance. Continue?",go);else go()}
+function pay(i){const a=+document.getElementById("a"+i).value,l=S.loans[i];if(!(a>0))return note("Enter an amount above 0. Months with no payment need no entry.");
+if(a>calc(l).full+0.01)return note("Amount is more than the full payoff");l.pays.push({d:document.getElementById("d"+i).value,a});save()}
+function bank(){const L=ledger();let b=0;const rows=L.map(x=>{b+=x.a;return{...x,b}}).reverse();
+return`<div class="g"><div class="c"><div class="k">Bank balance</div><div class="v">${$(b)}</div></div></div>
+<div class="c"><h2>Add other entry (bank interest, charges, etc.)</h2><div class="f"><label>Date<input type="date" id="bd" value="${T()}"></label><label>Description<input id="bt"></label>
+<label>Amount ₹ (− for debit)<input type="number" id="ba" style="width:120px"></label><button class="p" onclick="addB()">Add</button></div></div>
+<div class="c"><h2>Bank statement</h2><div class="sc"><table><tr><th>Date</th><th>Details</th><th class="n">Credit</th><th class="n">Debit</th><th class="n">Balance</th><th></th></tr>
+${rows.map(x=>`<tr><td>${x.d}</td><td>${x.t}</td><td class="n">${x.a>0?$(x.a):""}</td><td class="n bad">${x.a<0?$(-x.a):""}</td><td class="n">${$(x.b)}</td><td>${x.m?`<button onclick="S.bank.splice(${S.bank.findIndex(y=>y.d==x.d&&y.t==x.t&&y.a==x.a)},1);save()">✕</button>`:""}</td></tr>`).join("")}</table></div></div>`}
+function addB(){const a=+ba.value;if(!a||!bt.value)return note("Enter description and amount");S.bank.push({d:bd.value,t:bt.value,a});save()}
+let R={};
+function csv(n,rows){const t=rows.map(r=>r.map(c=>'"'+String(c).replace(/"/g,'""')+'"').join(",")).join("\n");const a=document.createElement("a");a.href="data:text/csv;charset=utf-8,"+encodeURIComponent(t);a.download=n+".csv";a.click()}
+function reports(){const s=stats(),L=ledger(),pm=months().filter(k=>k<=T().slice(0,7)),q=n=>Math.round(n);
+const mh=["Member","Saved","Contributions pending (months)","Pending amount","Loans taken","Principal outstanding","Interest paid","Interest due","Pending interest share","Interest received so far"];
+const mr=S.members.map(m=>{const mine=S.loans.filter(l=>l.mid==m.id),cs=mine.map(calc),pend=pm.filter(k=>!S.paid[m.id+"|"+k]).length,got=S.dist.reduce((a,x)=>a+((x.sh.find(y=>y.n==m.name)||{}).a||0),0);
+return[m.name,q(s.c[m.id]),pend,pend*S.amt,q(mine.reduce((a,l)=>a+l.amt,0)),q(cs.reduce((a,x)=>a+x.bal,0)),q(cs.reduce((a,x)=>a+x.int,0)),q(cs.reduce((a,x)=>a+x.due,0)),q(s.pend*share(s,m.id)),got]});
+const lh=["Borrower","Start date","Principal","Principal left","Interest charged","Interest paid","Interest due","Status"];
+const lr=S.loans.map(l=>{const x=calc(l);return[mn(l.mid),l.date,l.amt,q(x.bal),q(x.rows.reduce((a,r)=>a+r.i,0)),q(x.int),q(x.due),x.full<0.01?"Closed":"Active"]});
+const mm={};const g=k=>mm[k]=mm[k]||{cr:0,db:0,int:0};
+L.forEach(e=>{const o=g(e.d.slice(0,7));e.a>0?o.cr+=e.a:o.db-=e.a});S.loans.forEach(l=>calc(l).ev.forEach(e=>{g(e.d.slice(0,7)).int+=e.i}));
+let b=0;const bh=["Month","Money in","Money out","Interest received","Closing bank balance"];
+const br=Object.keys(mm).sort().map(k=>{b+=mm[k].cr-mm[k].db;return[k,q(mm[k].cr),q(mm[k].db),q(mm[k].int),q(b)]});
+R={m:[mh,...mr],l:[lh,...lr],b:[bh,...br]};
+const tb=(h,rows,tot)=>`<div class="sc"><table><tr>${h.map((x,i)=>`<th class="${i?"n":""}">${x}</th>`).join("")}</tr>${rows.map(r=>`<tr>${r.map((c,i)=>`<td class="n" style="${i?"":"text-align:left"}">${typeof c=="number"?c.toLocaleString("en-IN"):c}</td>`).join("")}</tr>`).join("")}${tot||""}</table></div>`;
+const sum=i=>mr.reduce((a,r)=>a+r[i],0);
+const tot=`<tr><td><b>Total</b></td>${[1,2,3,4,5,6,7,8,9].map(i=>`<td class="n"><b>${sum(i).toLocaleString("en-IN")}</b></td>`).join("")}</tr>`;
+return`<div class="c"><div class="top" style="margin:0 0 8px"><h2 style="margin:0">Member-wise report</h2><button onclick="csv('members',R.m)">Download CSV</button></div>${tb(mh,mr,tot)}</div>
+<div class="c"><div class="top" style="margin:0 0 8px"><h2 style="margin:0">Loan register</h2><button onclick="csv('loans',R.l)">Download CSV</button></div>${lr.length?tb(lh,lr):'<p class="k">No loans.</p>'}</div>
+<div class="c"><div class="top" style="margin:0 0 8px"><h2 style="margin:0">Monthly summary</h2><button onclick="csv('monthly',R.b)">Download CSV</button></div>${br.length?tb(bh,br):'<p class="k">No entries.</p>'}</div>
+<div class="c"><div class="top" style="margin:0 0 8px"><h2 style="margin:0">Bank statement</h2><button onclick="csv('bank',[['Date','Details','Amount'],...ledger().map(e=>[e.d,e.t,e.a])])">Download CSV</button></div><p class="k">Full statement is in the Bank tab. All amounts are in ₹.</p></div>`}
+function yearend(){const s=stats();const rows=S.members.map(m=>`<tr><td>${m.name}</td><td class="n">${$(s.c[m.id])}</td><td class="n">${(share(s,m.id)*100).toFixed(1)}%</td><td class="n"><b>${$(s.pend*share(s,m.id))}</b></td></tr>`).join("");
+const h=S.dist.map(x=>`<tr><td>${x.d}</td><td class="n">${$(x.total)}</td><td>${x.sh.map(y=>y.n+" "+$(y.a)).join(", ")}</td></tr>`).join("");
+return`<div class="g"><div class="c"><div class="k">Interest earned</div><div class="v">${$(s.ti)}</div></div><div class="c"><div class="k">Already distributed</div><div class="v">${$(s.dd)}</div></div><div class="c"><div class="k">Distribute now</div><div class="v">${$(s.pend)}</div></div></div>
+<div class="c"><h2>Interest distribution (by savings share)</h2><div class="sc"><table><tr><th>Member</th><th class="n">Saved</th><th class="n">Share</th><th class="n">Gets</th></tr>${rows}</table></div>
+<p class="k">Only interest actually received through EMIs is counted. Recording will debit the bank.</p><button class="p" onclick="doDist()">Record year-end distribution</button></div>
+${S.dist.length?`<div class="c"><h2>Past distributions</h2><div class="sc"><table><tr><th>Date</th><th class="n">Total</th><th>Split</th></tr>${h}</table></div></div>`:""}`}
+function doDist(){const s=stats(),t=Math.floor(s.pend);if(t<=0)return note("No interest to distribute");
+ask("Distribute "+$(t)+" to members?",()=>{S.dist.push({d:T(),total:t,sh:S.members.map(m=>({n:m.name,a:Math.round(t*share(s,m.id))}))});save()})}
+function members(){const o=S.open||(S.open={d:T(),cash:0});
+return`<div class="c"><h2>Opening balance (as-of date)</h2><div class="f"><label>As-of date<input type="date" value="${o.d}" onchange="S.open.d=this.value;save()"></label>
+<label>Cash at bank ₹<input type="number" value="${o.cash}" onchange="S.open.cash=+this.value||0;save()"></label></div>
+<p class="k">Tick monthly contributions only for months after this date. Earlier savings go in "Saved till now" below. Existing loans: Loans tab → tick "Existing loan", set the date as the as-of date and the amount as principal outstanding.</p></div>
+<div class="c"><h2>Members (${S.members.length})</h2>${S.members.map((m,i)=>`<div class="f" style="margin-bottom:8px"><label>Name<input value="${m.name}" onchange="S.members[${i}].name=this.value;save()"></label><label>Saved till now ₹<input type="number" value="${m.open||0}" style="width:120px" onchange="S.members[${i}].open=+this.value||0;save()"></label></div>`).join("")}
+<button onclick="S.members.push({id:'m'+Date.now(),name:'New member'});save()">+ Add member</button> <button onclick="ask('Reset ALL data? This cannot be undone.',()=>{S=JSON.parse(JSON.stringify(DEF));save()})">Reset all data</button></div>`}
+function dlg(m,ok){const d=document.createElement("div");d.style.cssText="position:fixed;inset:0;background:#0009;display:flex;align-items:center;justify-content:center;z-index:99;padding:16px";
+d.innerHTML=`<div class="c" style="max-width:320px;margin:0"><p style="margin:0 0 12px">${m}</p><div class="f"><button class="p" id="y">${ok?"Yes":"OK"}</button>${ok?'<button id="n">Cancel</button>':""}</div></div>`;document.body.appendChild(d);
+d.querySelector("#y").onclick=()=>{d.remove();ok&&ok()};if(ok)d.querySelector("#n").onclick=()=>d.remove()}
+const ask=(m,f)=>dlg(m,f),note=m=>dlg(m);
+function exp(){const a=document.createElement("a");a.href="data:application/json,"+encodeURIComponent(JSON.stringify(S));a.download="fund-backup.json";a.click()}
+function imp(e){const f=e.target.files[0];if(!f)return;const r=new FileReader();r.onload=()=>{try{S=JSON.parse(r.result);save()}catch(x){note("Invalid file")}};r.readAsText(f)}
+render();
+</script></body></html>
